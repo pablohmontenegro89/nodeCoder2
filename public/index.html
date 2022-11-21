@@ -16,6 +16,11 @@
             <h1>Ingrese Producto</h1>
             <br>
 
+            <form onsubmit="return login(this)">
+                <input type="login" id="loguearse" placeholder="usuario" />
+                <input type="submit" value="Enviar" />
+            </form>
+
             <form onsubmit="return addProduct(this)">
                 <!-- Campo nombre del producto -->
                 <div class="form-group">

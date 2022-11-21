@@ -1,127 +1,84 @@
 import express from "express";
-import { Server as IOServer } from "socket.io";
-import { Server as HttpServer } from "http";
-import routerCarrito from "./routes/carritos.router.js";
-import routerProductos from "./routes/productos.router.js";
-import {normalize, denormalize, schema } from "normalizr"
-import generarProductoRandom from "./faker.js"
-import util from "util"
+import cookieParser from 'cookie-parser'
+import session from 'express-session'
+import FileStore from "session-file-store"
 
-const app = express();
-const httpServer = new HttpServer(app);
-const io = new IOServer(httpServer);
+/* ----------------------------------------------------- */
+/*           Persistencia por file store                 */
+/* ----------------------------------------------------- */
+const FileStoree = FileStore(session)
+/* ----------------------------------------------------- */
 
 
-//--------------------------------------------
+const app = express()
 app.use(express.static("./public"));
 app.get("/", (req, res) => {
 	res.sendFile("index.html");
 });
+app.use(cookieParser())
+	app.use(session({
+    /* ----------------------------------------------------- */
+    /*           Persistencia por file store                 */
+    /* ----------------------------------------------------- */
+    store: new FileStoree({path: './sesiones', ttl:300, retries: 0}),
+    /* ----------------------------------------------------- */
 
-const router = express.Router();
-app.use("/", router);
-app.use("/productos", routerProductos);
-app.use("/carritos", routerCarrito);
+    secret: 'shhhhhhhhhhhhhhhhhhhhh',
+    resave: false,
+    saveUninitialized: false/* ,
+    cookie: {
+        maxAge: 40000
+    } */
+}))
 
-router.use(express.json());
-router.use(express.urlencoded({ extended: true }));
+app.get('/', (req,res) => {
+    res.send('Servidor express ok!')
+})
 
-//productos.listarAll()
-//productos.guardar(producto);
+let contador = 0
+app.get('/sin-session', (req,res) => {
+    res.send({ contador: ++contador })
+})
 
+app.get('/con-session', (req,res) => {
+    if(req.session.contador) {
+        req.session.contador++
+        res.send(`Ud ha visitado el sitio ${req.session.contador} veces.`)
+    }
+    else {
+        req.session.contador = 1
+        res.send('Bienvenido!')
+    }
+})
 
-const demo=[]
+app.get('/logout', (req,res) => {
+    req.session.destroy( err => {
+        if(!err) res.send('Logout ok!')
+        else res.send({status: 'Logout ERROR', body: err})
+    })
+})
 
-for (let k=0; k<5; k++){ 
-	demo.push(generarProductoRandom())
-}
+app.get('/info', (req,res) => {
+    console.log('------------ req.session -------------')
+    console.log(req.session)
+    console.log('--------------------------------------')
 
-const messages = {
-	messages:[
-		{id: 1,
-		author: {
-			mail: 'pablo@hotmail.com',
-			nombre: 'Pablo',
-			apellido: 'Montenegro',
-			edad: 20,
-			alias: 'pablomontenegro',
-			avatar: 'url.com',
-		},
-		text: "Hola, qué tal?",
-	},
-	{
-		id: 2,
-		author: {
-			mail: 'julian@hotmail.com',
-			nombre: 'Julian',
-			apellido: 'Gomez',
-			edad: 20,
-			alias: 'juliangomez',
-			avatar: 'url2.com',
-		},
-		text: "Todo bien, vos?",
-	},
-	{
-		id: 3,
-		author: {
-			mail: 'daniel@hotmail.com',
-			nombre: 'Daniel',
-			apellido: 'Roldan',
-			edad: 20,
-			alias: 'danielroldan',
-			avatar: 'url3.com',
-		},
-		text: "Me alegro mucho",
-	}
-]}
+    console.log('----------- req.sessionID ------------')
+    console.log(req.sessionID)
+    console.log('--------------------------------------')
 
-const authorSchema = new schema.Entity("author", undefined, {
-	idAttribute: "mail",
-  });
-  const messageSchema = new schema.Entity(
-	"message",
-	{
-	  author: authorSchema,
-	},
-	{
-	  idAttribute: "id",
-	}
-  );
-  const messagesSchemaNmlz = { messages: [messageSchema] };
-  const normalizado = normalize(messages, messagesSchemaNmlz);
-console.log("================NORMLIZADO=================")
-console.log(normalizado)
-console.log('normalizado',JSON.stringify(normalizado).length)
-console.log('original',JSON.stringify(messages).length)
-console.log("================DESNORMLIZADO=================")
-// console.log(util.inspect(normalizado, false, Infinity))
-const desnormalizado = denormalize(normalizado.result, messagesSchemaNmlz, normalizado.entities)
-console.log(util.inspect(desnormalizado, false, Infinity))
-console.log('desnormalizado', JSON.stringify(desnormalizado).length)
+    console.log('----------- req.cookies ------------')
+    console.log(req.cookies)
+    console.log('--------------------------------------')
 
-io.on("connection", (socket) => {
-	console.log("se cargó un producto");
+    console.log('---------- req.sessionStore ----------')
+    console.log(req.sessionStore)
+    console.log('--------------------------------------')
 
-	socket.emit("demo", demo);
+    res.send('Send info ok!')
+})
 
-	socket.on("new-product", (data) => {
-		demo.push(data);
-		io.sockets.emit("demo", demo);
-
-		  //.finally(() => {
-			//knex.destroy();
-		  //});
-	});
-
-
-	socket.emit("messages", messages);
-	
-	socket.on("new-message", (data) => {
-		messages.push(data);
-
-		io.sockets.emit("messages", messages);
-	});
-});
-
-const PORT = 8080;
-httpServer.listen(PORT, () => console.log("servidor Levantado"));
+const PORT = 8080
+app.listen(PORT, () => {
+    console.log(`Servidor express escuchando en el puerto ${PORT}`)
+})

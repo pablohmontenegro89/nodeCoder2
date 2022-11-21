@@ -58,3 +58,11 @@ function addProduct(e) {
 		socket.emit("new-message", mensaje);
 		return false;
 	}
+
+	function login(e){
+		const mensaje = {
+			log: document.getElementById("loguearse").value,
+		};
+		socket.emit("logg", mensaje);
+		return false;
+	}
